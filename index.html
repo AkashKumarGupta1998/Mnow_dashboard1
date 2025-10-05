@@ -443,13 +443,11 @@
             </table>
         </div>
     </div>
+<script>
+    // Configuration - UPDATE THIS WITH YOUR WEB APP URL
+    const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbwQmtomrCue4dcF1wJ3aSsQdnq_zVnXQQYAYfGTofU1jVnFHnCq8in46X8D2wh-FmE/exec'; // ← REPLACE THIS
 
-  <script>
-    // Configuration - UPDATE THIS WITH YOUR SHEET ID
-    const GOOGLE_SHEET_ID = 'e/2PACX-1vSgEDMDgtTKnCqEWY9BOYmDBmmbxzpLWOasergAF9yeT3VKwFgU_MTxqvC2lDs-q0hHkmUWLyqJELUE/'; // ← REPLACE WITH YOUR ACTUAL SHEET ID
-    const GOOGLE_SHEETS_URL = `https://docs.google.com/spreadsheets/d/${GOOGLE_SHEET_ID}/gviz/tq?tqx=out:json`;
-
-    // Sample data (fallback if Sheets fails)
+    // Sample data (fallback)
     const fallbackData = {
         "Janakpuri Mnow SF": {
             projection: [4, 12, 20, 29, 33, 35, 42, 44, 41, 41, 41, 38, 44, 41, 36, 32, 28],
@@ -475,12 +473,12 @@
         showLoadingState();
         
         try {
-            await fetchDataFromGoogleSheets();
-            showNotification('✅ Data loaded from Google Sheets!', 'success');
+            await fetchDataFromGoogleAppsScript();
+            showNotification('✅ Live data loaded from Google Sheets!', 'success');
         } catch (error) {
-            console.error('Failed to load from Google Sheets, using fallback data:', error);
+            console.error('Using fallback data:', error);
             storeData = fallbackData;
-            showNotification('⚠️ Using sample data (Google Sheets not connected)', 'warning');
+            showNotification('⚠️ Using sample data', 'warning');
         }
         
         calculateKPIs();
@@ -489,94 +487,62 @@
         hideLoadingState();
     }
 
-    // Google Sheets Integration
-    async function fetchDataFromGoogleSheets() {
+    // Google Apps Script Integration (WORKING METHOD)
+    async function fetchDataFromGoogleAppsScript() {
         try {
-            const [projectionData, attainmentData, yesterdayData] = await Promise.all([
-                fetchSheetData('Projection'),
-                fetchSheetData('Attainment'),
-                fetchSheetData('Yesterday')
-            ]);
+            console.log('🔄 Fetching data from:', WEB_APP_URL);
             
-            storeData = processSheetData(projectionData, attainmentData, yesterdayData);
-            console.log('📊 Data successfully loaded from Google Sheets:', storeData);
+            const response = await fetch(WEB_APP_URL);
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            
+            const data = await response.json();
+            
+            if (!data.success) {
+                throw new Error(data.error || 'Unknown error from server');
+            }
+            
+            storeData = processAppsScriptData(data.data);
+            console.log('📊 Data loaded successfully:', storeData);
             
         } catch (error) {
-            console.error('❌ Error fetching from Google Sheets:', error);
+            console.error('❌ Failed to fetch data:', error);
             throw error;
         }
     }
 
-    async function fetchSheetData(sheetName) {
-        const url = `${GOOGLE_SHEETS_URL}&sheet=${encodeURIComponent(sheetName)}`;
-        console.log(`📥 Fetching data from: ${url}`);
-        
-        const response = await fetch(url);
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        
-        const text = await response.text();
-        const json = JSON.parse(text.substring(47).slice(0, -2));
-        return json;
-    }
-
-    function processSheetData(projectionJson, attainmentJson, yesterdayJson) {
+    function processAppsScriptData(data) {
         const processedData = {};
         
         // Process Projection Data
-        if (projectionJson.table && projectionJson.table.rows) {
-            projectionJson.table.rows.forEach(row => {
-                if (row.c && row.c[0] && row.c[0].v) {
-                    const storeName = row.c[0].v;
-                    if (!processedData[storeName]) processedData[storeName] = {};
-                    
-                    processedData[storeName].projection = [];
-                    for (let i = 1; i < row.c.length; i++) {
-                        processedData[storeName].projection.push(row.c[i] ? (row.c[i].v || 0) : 0);
-                    }
-                }
+        if (data.projection) {
+            Object.entries(data.projection).forEach(([storeName, hours]) => {
+                if (!processedData[storeName]) processedData[storeName] = {};
+                processedData[storeName].projection = Object.values(hours);
             });
         }
         
         // Process Attainment Data
-        if (attainmentJson.table && attainmentJson.table.rows) {
-            attainmentJson.table.rows.forEach(row => {
-                if (row.c && row.c[0] && row.c[0].v) {
-                    const storeName = row.c[0].v;
-                    if (!processedData[storeName]) processedData[storeName] = {};
-                    
-                    processedData[storeName].attainment = [];
-                    for (let i = 1; i < row.c.length; i++) {
-                        if (row.c[i] && row.c[i].v !== null && row.c[i].v !== '') {
-                            processedData[storeName].attainment.push(row.c[i].v);
-                        } else {
-                            processedData[storeName].attainment.push(null);
-                        }
-                    }
-                }
+        if (data.attainment) {
+            Object.entries(data.attainment).forEach(([storeName, hours]) => {
+                if (!processedData[storeName]) processedData[storeName] = {};
+                processedData[storeName].attainment = Object.values(hours);
             });
         }
         
         // Process Yesterday Data
-        if (yesterdayJson.table && yesterdayJson.table.rows) {
-            yesterdayJson.table.rows.forEach(row => {
-                if (row.c && row.c[0] && row.c[0].v) {
-                    const storeName = row.c[0].v;
-                    if (!processedData[storeName]) processedData[storeName] = {};
-                    
-                    processedData[storeName].yesterday = [];
-                    for (let i = 1; i < row.c.length; i++) {
-                        processedData[storeName].yesterday.push(row.c[i] ? (row.c[i].v || 0) : 0);
-                    }
-                }
+        if (data.yesterday) {
+            Object.entries(data.yesterday).forEach(([storeName, hours]) => {
+                if (!processedData[storeName]) processedData[storeName] = {};
+                processedData[storeName].yesterday = Object.values(hours);
             });
         }
         
         return processedData;
     }
 
-    // Loading state functions
+    // Loading states
     function showLoadingState() {
         document.getElementById('loadingIndicator').style.display = 'flex';
         document.getElementById('storesTable').style.display = 'none';
@@ -587,18 +553,18 @@
         document.getElementById('storesTable').style.display = 'table';
     }
 
-    // Refresh data function
+    // Refresh data
     async function refreshData() {
         showLoadingState();
         try {
-            await fetchDataFromGoogleSheets();
+            await fetchDataFromGoogleAppsScript();
             calculateKPIs();
             updateChartsWithNewData();
             populateStoresTable();
             updateLastUpdated();
             showNotification('✅ Data refreshed successfully!', 'success');
         } catch (error) {
-            console.error('Failed to refresh data:', error);
+            console.error('Failed to refresh:', error);
             showNotification('❌ Failed to refresh data', 'error');
         }
         hideLoadingState();
@@ -612,24 +578,17 @@
 
     function updateLastUpdated() {
         const now = new Date();
-        const timeString = now.toLocaleTimeString();
-        document.getElementById('lastUpdated').innerHTML = `<i class="fas fa-clock"></i> Last updated: ${timeString}`;
+        document.getElementById('lastUpdated').innerHTML = 
+            `<i class="fas fa-clock"></i> Last updated: ${now.toLocaleTimeString()}`;
     }
 
     function showNotification(message, type) {
         const notification = document.createElement('div');
         notification.style.cssText = `
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            padding: 15px 20px;
+            position: fixed; top: 20px; right: 20px; padding: 15px 20px;
             background: ${type === 'success' ? '#27ae60' : type === 'warning' ? '#f39c12' : '#e74c3c'};
-            color: white;
-            border-radius: 10px;
-            z-index: 1000;
-            font-weight: 600;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
-            transform: translateX(400px);
+            color: white; border-radius: 10px; z-index: 1000; font-weight: 600;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2); transform: translateX(400px);
             transition: transform 0.3s ease;
         `;
         notification.innerHTML = `
@@ -639,19 +598,16 @@
         
         document.body.appendChild(notification);
         
-        setTimeout(() => {
-            notification.style.transform = 'translateX(0)';
-        }, 100);
-        
+        setTimeout(() => notification.style.transform = 'translateX(0)', 100);
         setTimeout(() => {
             notification.style.transform = 'translateX(400px)';
-            setTimeout(() => {
-                document.body.removeChild(notification);
-            }, 300);
+            setTimeout(() => document.body.removeChild(notification), 300);
         }, 4000);
     }
 
-    // Your existing chart functions (keep these the same)
+    // Keep all your existing chart functions (calculateKPIs, initializeCharts, etc.)
+    // ... [YOUR EXISTING CHART FUNCTIONS HERE - NO CHANGES NEEDED] ...
+    
     let overallChart, performanceChart;
 
     function calculateKPIs() {
@@ -844,7 +800,7 @@
         return '📉';
     }
 
-    // Initialize when page loads
+    // Initialize dashboard
     document.addEventListener('DOMContentLoaded', function() {
         initializeDashboard();
         
@@ -859,5 +815,5 @@
         });
     });
 </script>
-</body>
+  </body>
 </html>
