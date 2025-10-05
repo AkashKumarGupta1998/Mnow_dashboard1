@@ -1,0 +1,789 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mnow Stores Performance Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        :root {
+            --primary: #3498db;
+            --success: #27ae60;
+            --warning: #f39c12;
+            --danger: #e74c3c;
+            --dark: #2c3e50;
+            --light: #ecf0f1;
+            --gray: #95a5a6;
+        }
+
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .dashboard {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        /* Header Styles */
+        .header {
+            background: white;
+            padding: 25px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            margin-bottom: 25px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-left: 5px solid var(--primary);
+        }
+
+        .header h1 {
+            color: var(--dark);
+            font-size: 32px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .header h1 i {
+            color: var(--primary);
+        }
+
+        .controls {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+        }
+
+        .control-group {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        select, input, button {
+            padding: 10px 15px;
+            border: 2px solid #e1e5eb;
+            border-radius: 8px;
+            background: white;
+            font-size: 14px;
+            transition: all 0.3s ease;
+        }
+
+        select:focus, input:focus {
+            border-color: var(--primary);
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+            border: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-weight: 600;
+        }
+
+        .btn-primary:hover {
+            background: #2980b9;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(52, 152, 219, 0.3);
+        }
+
+        /* KPI Cards */
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 20px;
+            margin-bottom: 25px;
+        }
+
+        .kpi-card {
+            background: white;
+            padding: 25px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            text-align: center;
+            transition: transform 0.3s ease;
+            border-top: 4px solid var(--primary);
+        }
+
+        .kpi-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .kpi-card.success { border-top-color: var(--success); }
+        .kpi-card.warning { border-top-color: var(--warning); }
+        .kpi-card.danger { border-top-color: var(--danger); }
+
+        .kpi-icon {
+            font-size: 32px;
+            margin-bottom: 15px;
+        }
+
+        .kpi-card.success .kpi-icon { color: var(--success); }
+        .kpi-card.warning .kpi-icon { color: var(--warning); }
+        .kpi-card.danger .kpi-icon { color: var(--danger); }
+
+        .kpi-value {
+            font-size: 28px;
+            font-weight: bold;
+            color: var(--dark);
+            margin: 10px 0;
+        }
+
+        .kpi-label {
+            color: var(--gray);
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        .kpi-trend {
+            font-size: 12px;
+            margin-top: 8px;
+            font-weight: 600;
+        }
+
+        .trend-positive { color: var(--success); }
+        .trend-negative { color: var(--danger); }
+
+        /* Charts Container */
+        .charts-container {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 25px;
+            margin-bottom: 25px;
+        }
+
+        .chart-card {
+            background: white;
+            padding: 25px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+
+        .chart-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .chart-header h2 {
+            color: var(--dark);
+            font-size: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .chart-header h2 i {
+            color: var(--primary);
+        }
+
+        /* Stores Grid */
+        .stores-grid {
+            background: white;
+            padding: 25px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+
+        .stores-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .stores-header h2 {
+            color: var(--dark);
+            font-size: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .stores-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .stores-table th {
+            background: var(--dark);
+            color: white;
+            padding: 15px;
+            text-align: center;
+            font-weight: 600;
+        }
+
+        .stores-table td {
+            padding: 12px;
+            text-align: center;
+            border-bottom: 1px solid #ecf0f1;
+        }
+
+        .stores-table tr:hover {
+            background: #f8f9fa;
+        }
+
+        .store-name {
+            font-weight: 600;
+            color: var(--dark);
+            text-align: left !important;
+        }
+
+        .progress-cell {
+            min-width: 120px;
+        }
+
+        .progress-bar {
+            background: #ecf0f1;
+            border-radius: 10px;
+            height: 8px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .progress-fill {
+            height: 100%;
+            border-radius: 10px;
+            transition: width 0.3s ease;
+        }
+
+        .progress-high { background: var(--success); }
+        .progress-medium { background: var(--warning); }
+        .progress-low { background: var(--danger); }
+
+        .view-btn {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.3s ease;
+        }
+
+        .view-btn:hover {
+            background: #2980b9;
+            transform: scale(1.05);
+        }
+
+        /* Loading Animation */
+        .loading {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 200px;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid var(--primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Responsive Design */
+        @media (max-width: 1024px) {
+            .charts-container {
+                grid-template-columns: 1fr;
+            }
+            
+            .kpi-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (max-width: 768px) {
+            .kpi-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .header {
+                flex-direction: column;
+                gap: 15px;
+                text-align: center;
+            }
+            
+            .controls {
+                flex-direction: column;
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="dashboard">
+        <!-- Header -->
+        <div class="header">
+            <h1><i class="fas fa-chart-line"></i> Mnow Stores Performance Dashboard</h1>
+            <div class="controls">
+                <div class="control-group">
+                    <label><i class="fas fa-calendar"></i></label>
+                    <input type="date" id="datePicker" value="2025-10-05">
+                </div>
+                <div class="control-group">
+                    <label><i class="fas fa-store"></i></label>
+                    <select id="storeFilter">
+                        <option value="all">All Stores</option>
+                        <option value="Janakpuri">Janakpuri</option>
+                        <option value="UttamNagar">Uttam Nagar</option>
+                        <option value="Dwarka">Dwarka</option>
+                    </select>
+                </div>
+                <button class="btn-primary" onclick="refreshData()">
+                    <i class="fas fa-sync-alt"></i> Refresh Data
+                </button>
+            </div>
+        </div>
+
+        <!-- KPI Cards -->
+        <div class="kpi-grid">
+            <div class="kpi-card">
+                <div class="kpi-icon"><i class="fas fa-bullseye"></i></div>
+                <div class="kpi-value" id="totalAttainment">0</div>
+                <div class="kpi-label">TOTAL ATTAINMENT</div>
+                <div class="kpi-trend">Today 6AM-9AM</div>
+            </div>
+            <div class="kpi-card success">
+                <div class="kpi-icon"><i class="fas fa-chart-line"></i></div>
+                <div class="kpi-value" id="attainmentRate">0%</div>
+                <div class="kpi-label">ATTAINMENT RATE</div>
+                <div class="kpi-trend trend-positive" id="rateTrend">+0% vs Target</div>
+            </div>
+            <div class="kpi-card warning">
+                <div class="kpi-icon"><i class="fas fa-project-diagram"></i></div>
+                <div class="kpi-value" id="vsProjection">0%</div>
+                <div class="kpi-label">VS PROJECTION</div>
+                <div class="kpi-trend" id="projectionTrend">On Track</div>
+            </div>
+            <div class="kpi-card danger">
+                <div class="kpi-icon"><i class="fas fa-calendar-day"></i></div>
+                <div class="kpi-value" id="vsYesterday">0%</div>
+                <div class="kpi-label">VS YESTERDAY</div>
+                <div class="kpi-trend" id="yesterdayTrend">-0%</div>
+            </div>
+        </div>
+
+        <!-- Charts -->
+        <div class="charts-container">
+            <div class="chart-card">
+                <div class="chart-header">
+                    <h2><i class="fas fa-chart-bar"></i> Overall Hourly Trend</h2>
+                    <div class="chart-legend">
+                        <span style="color: var(--primary)">● Projection</span>
+                        <span style="color: var(--success)">● Attainment</span>
+                        <span style="color: var(--danger)">● Yesterday</span>
+                    </div>
+                </div>
+                <canvas id="overallChart"></canvas>
+            </div>
+            <div class="chart-card">
+                <div class="chart-header">
+                    <h2><i class="fas fa-chart-pie"></i> Store Performance</h2>
+                </div>
+                <canvas id="performanceChart"></canvas>
+            </div>
+        </div>
+
+        <!-- Stores Grid -->
+        <div class="stores-grid">
+            <div class="stores-header">
+                <h2><i class="fas fa-table"></i> Store-wise Performance</h2>
+                <div class="last-updated" id="lastUpdated">
+                    <i class="fas fa-clock"></i> Last updated: Loading...
+                </div>
+            </div>
+            <div class="loading" id="loadingIndicator">
+                <div class="spinner"></div>
+                <div>Loading data from Google Sheets...</div>
+            </div>
+            <table class="stores-table" id="storesTable" style="display: none;">
+                <thead>
+                    <tr>
+                        <th>STORE</th>
+                        <th>6AM</th>
+                        <th>7AM</th>
+                        <th>8AM</th>
+                        <th>9AM</th>
+                        <th>TOTAL</th>
+                        <th>ATTAINMENT RATE</th>
+                        <th>TREND</th>
+                    </tr>
+                </thead>
+                <tbody id="storesTableBody">
+                    <!-- Data will be populated here -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        // Sample data structure
+        const storeData = {
+            "Janakpuri": {
+                projection: [4, 12, 20, 29, 33, 35, 42, 44, 41, 41, 41, 38, 44, 41, 36, 32, 28],
+                attainment: [5, 15, 22, 43, 37, null, null, null, null, null, null, null, null, null, null, null, null],
+                yesterday: [7, 14, 16, 45, 34, 34, 39, 54, 49, 48, 45, 59, 56, 51, 44, 37, 37]
+            },
+            "UttamNagar": {
+                projection: [6, 19, 32, 46, 52, 55, 67, 69, 65, 66, 65, 60, 70, 65, 57, 51, 44],
+                attainment: [6, 17, 28, 46, 52, null, null, null, null, null, null, null, null, null, null, null, null],
+                yesterday: [2, 27, 28, 36, 56, 60, 49, 48, 51, 55, 54, 46, 57, 48, 53, 68, 43]
+            },
+            "Dwarka": {
+                projection: [3, 9, 16, 23, 26, 27, 34, 35, 33, 33, 32, 30, 35, 33, 29, 26, 22],
+                attainment: [2, 9, 22, 29, 26, null, null, null, null, null, null, null, null, null, null, null, null],
+                yesterday: [2, 5, 16, 33, 29, 34, 41, 34, 45, 39, 45, 42, 36, 33, 36, 39, 29]
+            },
+            "Mandawali": {
+                projection: [4, 11, 20, 28, 32, 33, 41, 42, 40, 40, 39, 37, 43, 40, 35, 31, 27],
+                attainment: [1, 4, 20, 33, 32, null, null, null, null, null, null, null, null, null, null, null, null],
+                yesterday: [2, 13, 20, 26, 39, 41, 51, 50, 47, 46, 55, 45, 51, 45, 34, 40, 39]
+            }
+        };
+
+        let overallChart, performanceChart;
+
+        // Initialize dashboard
+        function initializeDashboard() {
+            updateLastUpdated();
+            calculateKPIs();
+            initializeCharts();
+            populateStoresTable();
+            
+            // Hide loading indicator
+            document.getElementById('loadingIndicator').style.display = 'none';
+            document.getElementById('storesTable').style.display = 'table';
+        }
+
+        // Calculate KPI metrics
+        function calculateKPIs() {
+            let totalProjected = 0;
+            let totalAttained = 0;
+            let totalYesterday = 0;
+
+            Object.values(storeData).forEach(store => {
+                const projected = store.projection.slice(0, 5).reduce((a, b) => a + b, 0);
+                const attained = store.attainment.slice(0, 5).filter(v => v !== null).reduce((a, b) => a + b, 0);
+                const yesterday = store.yesterday.slice(0, 5).reduce((a, b) => a + b, 0);
+                
+                totalProjected += projected;
+                totalAttained += attained;
+                totalYesterday += yesterday;
+            });
+
+            const attainmentRate = ((totalAttained / totalProjected) * 100).toFixed(1);
+            const vsProjection = ((totalAttained - totalProjected) / totalProjected * 100).toFixed(1);
+            const vsYesterday = ((totalAttained - totalYesterday) / totalYesterday * 100).toFixed(1);
+
+            // Update KPI cards
+            document.getElementById('totalAttainment').textContent = totalAttained;
+            document.getElementById('attainmentRate').textContent = attainmentRate + '%';
+            document.getElementById('vsProjection').textContent = vsProjection + '%';
+            document.getElementById('vsYesterday').textContent = vsYesterday + '%';
+
+            // Update trend indicators
+            document.getElementById('rateTrend').textContent = attainmentRate >= 100 ? '+0% vs Target' : '-' + (100 - attainmentRate) + '% vs Target';
+            document.getElementById('rateTrend').className = `kpi-trend ${attainmentRate >= 100 ? 'trend-positive' : 'trend-negative'}`;
+            
+            document.getElementById('projectionTrend').textContent = vsProjection >= 0 ? 'Above Target' : 'Below Target';
+            document.getElementById('projectionTrend').className = `kpi-trend ${vsProjection >= 0 ? 'trend-positive' : 'trend-negative'}`;
+            
+            document.getElementById('yesterdayTrend').textContent = (vsYesterday >= 0 ? '+' : '') + vsYesterday + '%';
+            document.getElementById('yesterdayTrend').className = `kpi-trend ${vsYesterday >= 0 ? 'trend-positive' : 'trend-negative'}`;
+        }
+
+        // Initialize charts
+        function initializeCharts() {
+            // Overall Trend Chart
+            const overallCtx = document.getElementById('overallChart').getContext('2d');
+            overallChart = new Chart(overallCtx, {
+                type: 'line',
+                data: getOverallChartData(),
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            mode: 'index',
+                            intersect: false
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            grid: {
+                                color: 'rgba(0,0,0,0.1)'
+                            }
+                        },
+                        x: {
+                            grid: {
+                                display: false
+                            }
+                        }
+                    },
+                    interaction: {
+                        intersect: false,
+                        mode: 'nearest'
+                    }
+                }
+            });
+
+            // Performance Chart
+            const performanceCtx = document.getElementById('performanceChart').getContext('2d');
+            performanceChart = new Chart(performanceCtx, {
+                type: 'doughnut',
+                data: getPerformanceChartData(),
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            position: 'bottom'
+                        }
+                    },
+                    cutout: '60%'
+                }
+            });
+        }
+
+        function getOverallChartData() {
+            const hours = ['6AM', '7AM', '8AM', '9AM', '10AM', '11AM', '12PM', '1PM', '2PM', '3PM', '4PM', '5PM', '6PM', '7PM', '8PM', '9PM', '10PM'];
+            
+            // Calculate aggregated data
+            const projectionSums = new Array(hours.length).fill(0);
+            const attainmentSums = new Array(hours.length).fill(0);
+            const yesterdaySums = new Array(hours.length).fill(0);
+
+            Object.values(storeData).forEach(store => {
+                store.projection.forEach((val, i) => projectionSums[i] += val);
+                store.attainment.forEach((val, i) => attainmentSums[i] += val || 0);
+                store.yesterday.forEach((val, i) => yesterdaySums[i] += val);
+            });
+
+            return {
+                labels: hours,
+                datasets: [
+                    {
+                        label: 'Projection',
+                        data: projectionSums,
+                        borderColor: '#3498db',
+                        backgroundColor: 'rgba(52, 152, 219, 0.1)',
+                        borderWidth: 3,
+                        tension: 0.4,
+                        fill: true
+                    },
+                    {
+                        label: 'Attainment',
+                        data: attainmentSums,
+                        borderColor: '#27ae60',
+                        backgroundColor: 'rgba(39, 174, 96, 0.1)',
+                        borderWidth: 3,
+                        tension: 0.4,
+                        fill: true
+                    },
+                    {
+                        label: 'Yesterday',
+                        data: yesterdaySums,
+                        borderColor: '#e74c3c',
+                        backgroundColor: 'rgba(231, 76, 60, 0.1)',
+                        borderWidth: 2,
+                        tension: 0.4,
+                        borderDash: [5, 5],
+                        fill: true
+                    }
+                ]
+            };
+        }
+
+        function getPerformanceChartData() {
+            const stores = Object.keys(storeData);
+            const attainmentRates = stores.map(store => {
+                const projected = storeData[store].projection.slice(0, 5).reduce((a, b) => a + b, 0);
+                const attained = storeData[store].attainment.slice(0, 5).filter(v => v !== null).reduce((a, b) => a + b, 0);
+                return ((attained / projected) * 100).toFixed(1);
+            });
+
+            return {
+                labels: stores,
+                datasets: [{
+                    data: attainmentRates,
+                    backgroundColor: [
+                        '#3498db', '#27ae60', '#e74c3c', '#f39c12',
+                        '#9b59b6', '#1abc9c', '#d35400', '#34495e'
+                    ],
+                    borderWidth: 2,
+                    borderColor: 'white'
+                }]
+            };
+        }
+
+        // Populate stores table
+        function populateStoresTable() {
+            const tbody = document.getElementById('storesTableBody');
+            tbody.innerHTML = '';
+
+            Object.entries(storeData).forEach(([storeName, data]) => {
+                const hours = data.attainment.slice(0, 5);
+                const totalAttained = hours.filter(v => v !== null).reduce((a, b) => a + b, 0);
+                const totalProjected = data.projection.slice(0, 5).reduce((a, b) => a + b, 0);
+                const attainmentRate = ((totalAttained / totalProjected) * 100).toFixed(1);
+                
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td class="store-name">${storeName}</td>
+                    ${hours.map(hour => `
+                        <td>${hour !== null ? `<strong>${hour}</strong>` : '<span style="color: #95a5a6">-</span>'}</td>
+                    `).join('')}
+                    <td><strong>${totalAttained}</strong></td>
+                    <td>
+                        <div class="progress-cell">
+                            <div class="progress-bar">
+                                <div class="progress-fill ${getProgressClass(attainmentRate)}" 
+                                     style="width: ${Math.min(attainmentRate, 100)}%"></div>
+                            </div>
+                            <div style="margin-top: 5px; font-size: 12px; font-weight: 600; color: ${getProgressColor(attainmentRate)}">
+                                ${attainmentRate}%
+                            </div>
+                        </div>
+                    </td>
+                    <td>
+                        <span style="color: ${getTrendColor(attainmentRate)}; font-size: 18px;">
+                            ${getTrendIcon(attainmentRate)}
+                        </span>
+                    </td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+
+        function getProgressClass(rate) {
+            if (rate >= 90) return 'progress-high';
+            if (rate >= 70) return 'progress-medium';
+            return 'progress-low';
+        }
+
+        function getProgressColor(rate) {
+            if (rate >= 90) return '#27ae60';
+            if (rate >= 70) return '#f39c12';
+            return '#e74c3c';
+        }
+
+        function getTrendColor(rate) {
+            if (rate >= 90) return '#27ae60';
+            if (rate >= 70) return '#f39c12';
+            return '#e74c3c';
+        }
+
+        function getTrendIcon(rate) {
+            if (rate >= 90) return '📈';
+            if (rate >= 70) return '➡️';
+            return '📉';
+        }
+
+        // Utility functions
+        function updateLastUpdated() {
+            const now = new Date();
+            const timeString = now.toLocaleTimeString();
+            document.getElementById('lastUpdated').innerHTML = `<i class="fas fa-clock"></i> Last updated: ${timeString}`;
+        }
+
+        function refreshData() {
+            document.getElementById('loadingIndicator').style.display = 'flex';
+            document.getElementById('storesTable').style.display = 'none';
+            
+            // Simulate API call delay
+            setTimeout(() => {
+                // In real implementation, fetch from Google Sheets here
+                initializeDashboard();
+                
+                // Show success message
+                showNotification('Data refreshed successfully!', 'success');
+            }, 1500);
+        }
+
+        function showNotification(message, type) {
+            // Create notification element
+            const notification = document.createElement('div');
+            notification.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                padding: 15px 20px;
+                background: ${type === 'success' ? '#27ae60' : '#e74c3c'};
+                color: white;
+                border-radius: 10px;
+                z-index: 1000;
+                font-weight: 600;
+                box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+                transform: translateX(400px);
+                transition: transform 0.3s ease;
+            `;
+            notification.innerHTML = `
+                <i class="fas fa-${type === 'success' ? 'check' : 'exclamation'}-circle"></i>
+                ${message}
+            `;
+            
+            document.body.appendChild(notification);
+            
+            // Animate in
+            setTimeout(() => {
+                notification.style.transform = 'translateX(0)';
+            }, 100);
+            
+            // Remove after 3 seconds
+            setTimeout(() => {
+                notification.style.transform = 'translateX(400px)';
+                setTimeout(() => {
+                    document.body.removeChild(notification);
+                }, 300);
+            }, 3000);
+        }
+
+        // Initialize when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            // Simulate initial data loading
+            setTimeout(initializeDashboard, 2000);
+            
+            // Add event listeners
+            document.getElementById('datePicker').addEventListener('change', function() {
+                showNotification(`Viewing data for ${this.value}`, 'info');
+            });
+            
+            document.getElementById('storeFilter').addEventListener('change', function() {
+                if (this.value !== 'all') {
+                    showNotification(`Filtered view: ${this.value}`, 'info');
+                }
+            });
+        });
+    </script>
+</body>
+</html>
