@@ -444,346 +444,420 @@
         </div>
     </div>
 
-    <script>
-        // Sample data structure
-        const storeData = {
-            "Janakpuri": {
-                projection: [4, 12, 20, 29, 33, 35, 42, 44, 41, 41, 41, 38, 44, 41, 36, 32, 28],
-                attainment: [5, 15, 22, 43, 37, null, null, null, null, null, null, null, null, null, null, null, null],
-                yesterday: [7, 14, 16, 45, 34, 34, 39, 54, 49, 48, 45, 59, 56, 51, 44, 37, 37]
-            },
-            "UttamNagar": {
-                projection: [6, 19, 32, 46, 52, 55, 67, 69, 65, 66, 65, 60, 70, 65, 57, 51, 44],
-                attainment: [6, 17, 28, 46, 52, null, null, null, null, null, null, null, null, null, null, null, null],
-                yesterday: [2, 27, 28, 36, 56, 60, 49, 48, 51, 55, 54, 46, 57, 48, 53, 68, 43]
-            },
-            "Dwarka": {
-                projection: [3, 9, 16, 23, 26, 27, 34, 35, 33, 33, 32, 30, 35, 33, 29, 26, 22],
-                attainment: [2, 9, 22, 29, 26, null, null, null, null, null, null, null, null, null, null, null, null],
-                yesterday: [2, 5, 16, 33, 29, 34, 41, 34, 45, 39, 45, 42, 36, 33, 36, 39, 29]
-            },
-            "Mandawali": {
-                projection: [4, 11, 20, 28, 32, 33, 41, 42, 40, 40, 39, 37, 43, 40, 35, 31, 27],
-                attainment: [1, 4, 20, 33, 32, null, null, null, null, null, null, null, null, null, null, null, null],
-                yesterday: [2, 13, 20, 26, 39, 41, 51, 50, 47, 46, 55, 45, 51, 45, 34, 40, 39]
-            }
-        };
+  <script>
+    // Configuration - UPDATE THIS WITH YOUR SHEET ID
+    const GOOGLE_SHEET_ID = '1AycmPUBQmZZZusuI7f233SpaQSblcw-4qXAYX1MVIJU'; // ← REPLACE WITH YOUR ACTUAL SHEET ID
+    const GOOGLE_SHEETS_URL = `https://docs.google.com/spreadsheets/d/${GOOGLE_SHEET_ID}/gviz/tq?tqx=out:json`;
 
-        let overallChart, performanceChart;
+    // Sample data (fallback if Sheets fails)
+    const fallbackData = {
+        "Janakpuri Mnow SF": {
+            projection: [4, 12, 20, 29, 33, 35, 42, 44, 41, 41, 41, 38, 44, 41, 36, 32, 28],
+            attainment: [5, 15, 22, 43, 37, null, null, null, null, null, null, null, null, null, null, null, null],
+            yesterday: [7, 14, 16, 45, 34, 34, 39, 54, 49, 48, 45, 59, 56, 51, 44, 37, 37]
+        },
+        "UttamNagar Mnow SF": {
+            projection: [6, 19, 32, 46, 52, 55, 67, 69, 65, 66, 65, 60, 70, 65, 57, 51, 44],
+            attainment: [6, 17, 28, 46, 52, null, null, null, null, null, null, null, null, null, null, null, null],
+            yesterday: [2, 27, 28, 36, 56, 60, 49, 48, 51, 55, 54, 46, 57, 48, 53, 68, 43]
+        },
+        "Dwarka Mnow SF": {
+            projection: [3, 9, 16, 23, 26, 27, 34, 35, 33, 33, 32, 30, 35, 33, 29, 26, 22],
+            attainment: [2, 9, 22, 29, 26, null, null, null, null, null, null, null, null, null, null, null, null],
+            yesterday: [2, 5, 16, 33, 29, 34, 41, 34, 45, 39, 45, 42, 36, 33, 36, 39, 29]
+        }
+    };
 
-        // Initialize dashboard
-        function initializeDashboard() {
-            updateLastUpdated();
+    let storeData = {};
+
+    // Main initialization
+    async function initializeDashboard() {
+        showLoadingState();
+        
+        try {
+            await fetchDataFromGoogleSheets();
+            showNotification('✅ Data loaded from Google Sheets!', 'success');
+        } catch (error) {
+            console.error('Failed to load from Google Sheets, using fallback data:', error);
+            storeData = fallbackData;
+            showNotification('⚠️ Using sample data (Google Sheets not connected)', 'warning');
+        }
+        
+        calculateKPIs();
+        initializeCharts();
+        populateStoresTable();
+        hideLoadingState();
+    }
+
+    // Google Sheets Integration
+    async function fetchDataFromGoogleSheets() {
+        try {
+            const [projectionData, attainmentData, yesterdayData] = await Promise.all([
+                fetchSheetData('Projection'),
+                fetchSheetData('Attainment'),
+                fetchSheetData('Yesterday')
+            ]);
+            
+            storeData = processSheetData(projectionData, attainmentData, yesterdayData);
+            console.log('📊 Data successfully loaded from Google Sheets:', storeData);
+            
+        } catch (error) {
+            console.error('❌ Error fetching from Google Sheets:', error);
+            throw error;
+        }
+    }
+
+    async function fetchSheetData(sheetName) {
+        const url = `${GOOGLE_SHEETS_URL}&sheet=${encodeURIComponent(sheetName)}`;
+        console.log(`📥 Fetching data from: ${url}`);
+        
+        const response = await fetch(url);
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const text = await response.text();
+        const json = JSON.parse(text.substring(47).slice(0, -2));
+        return json;
+    }
+
+    function processSheetData(projectionJson, attainmentJson, yesterdayJson) {
+        const processedData = {};
+        
+        // Process Projection Data
+        if (projectionJson.table && projectionJson.table.rows) {
+            projectionJson.table.rows.forEach(row => {
+                if (row.c && row.c[0] && row.c[0].v) {
+                    const storeName = row.c[0].v;
+                    if (!processedData[storeName]) processedData[storeName] = {};
+                    
+                    processedData[storeName].projection = [];
+                    for (let i = 1; i < row.c.length; i++) {
+                        processedData[storeName].projection.push(row.c[i] ? (row.c[i].v || 0) : 0);
+                    }
+                }
+            });
+        }
+        
+        // Process Attainment Data
+        if (attainmentJson.table && attainmentJson.table.rows) {
+            attainmentJson.table.rows.forEach(row => {
+                if (row.c && row.c[0] && row.c[0].v) {
+                    const storeName = row.c[0].v;
+                    if (!processedData[storeName]) processedData[storeName] = {};
+                    
+                    processedData[storeName].attainment = [];
+                    for (let i = 1; i < row.c.length; i++) {
+                        if (row.c[i] && row.c[i].v !== null && row.c[i].v !== '') {
+                            processedData[storeName].attainment.push(row.c[i].v);
+                        } else {
+                            processedData[storeName].attainment.push(null);
+                        }
+                    }
+                }
+            });
+        }
+        
+        // Process Yesterday Data
+        if (yesterdayJson.table && yesterdayJson.table.rows) {
+            yesterdayJson.table.rows.forEach(row => {
+                if (row.c && row.c[0] && row.c[0].v) {
+                    const storeName = row.c[0].v;
+                    if (!processedData[storeName]) processedData[storeName] = {};
+                    
+                    processedData[storeName].yesterday = [];
+                    for (let i = 1; i < row.c.length; i++) {
+                        processedData[storeName].yesterday.push(row.c[i] ? (row.c[i].v || 0) : 0);
+                    }
+                }
+            });
+        }
+        
+        return processedData;
+    }
+
+    // Loading state functions
+    function showLoadingState() {
+        document.getElementById('loadingIndicator').style.display = 'flex';
+        document.getElementById('storesTable').style.display = 'none';
+    }
+
+    function hideLoadingState() {
+        document.getElementById('loadingIndicator').style.display = 'none';
+        document.getElementById('storesTable').style.display = 'table';
+    }
+
+    // Refresh data function
+    async function refreshData() {
+        showLoadingState();
+        try {
+            await fetchDataFromGoogleSheets();
             calculateKPIs();
-            initializeCharts();
+            updateChartsWithNewData();
             populateStoresTable();
-            
-            // Hide loading indicator
-            document.getElementById('loadingIndicator').style.display = 'none';
-            document.getElementById('storesTable').style.display = 'table';
+            updateLastUpdated();
+            showNotification('✅ Data refreshed successfully!', 'success');
+        } catch (error) {
+            console.error('Failed to refresh data:', error);
+            showNotification('❌ Failed to refresh data', 'error');
         }
+        hideLoadingState();
+    }
 
-        // Calculate KPI metrics
-        function calculateKPIs() {
-            let totalProjected = 0;
-            let totalAttained = 0;
-            let totalYesterday = 0;
+    function updateChartsWithNewData() {
+        if (overallChart) overallChart.destroy();
+        if (performanceChart) performanceChart.destroy();
+        initializeCharts();
+    }
 
-            Object.values(storeData).forEach(store => {
-                const projected = store.projection.slice(0, 5).reduce((a, b) => a + b, 0);
-                const attained = store.attainment.slice(0, 5).filter(v => v !== null).reduce((a, b) => a + b, 0);
-                const yesterday = store.yesterday.slice(0, 5).reduce((a, b) => a + b, 0);
-                
-                totalProjected += projected;
-                totalAttained += attained;
-                totalYesterday += yesterday;
-            });
+    function updateLastUpdated() {
+        const now = new Date();
+        const timeString = now.toLocaleTimeString();
+        document.getElementById('lastUpdated').innerHTML = `<i class="fas fa-clock"></i> Last updated: ${timeString}`;
+    }
 
-            const attainmentRate = ((totalAttained / totalProjected) * 100).toFixed(1);
-            const vsProjection = ((totalAttained - totalProjected) / totalProjected * 100).toFixed(1);
-            const vsYesterday = ((totalAttained - totalYesterday) / totalYesterday * 100).toFixed(1);
-
-            // Update KPI cards
-            document.getElementById('totalAttainment').textContent = totalAttained;
-            document.getElementById('attainmentRate').textContent = attainmentRate + '%';
-            document.getElementById('vsProjection').textContent = vsProjection + '%';
-            document.getElementById('vsYesterday').textContent = vsYesterday + '%';
-
-            // Update trend indicators
-            document.getElementById('rateTrend').textContent = attainmentRate >= 100 ? '+0% vs Target' : '-' + (100 - attainmentRate) + '% vs Target';
-            document.getElementById('rateTrend').className = `kpi-trend ${attainmentRate >= 100 ? 'trend-positive' : 'trend-negative'}`;
-            
-            document.getElementById('projectionTrend').textContent = vsProjection >= 0 ? 'Above Target' : 'Below Target';
-            document.getElementById('projectionTrend').className = `kpi-trend ${vsProjection >= 0 ? 'trend-positive' : 'trend-negative'}`;
-            
-            document.getElementById('yesterdayTrend').textContent = (vsYesterday >= 0 ? '+' : '') + vsYesterday + '%';
-            document.getElementById('yesterdayTrend').className = `kpi-trend ${vsYesterday >= 0 ? 'trend-positive' : 'trend-negative'}`;
-        }
-
-        // Initialize charts
-        function initializeCharts() {
-            // Overall Trend Chart
-            const overallCtx = document.getElementById('overallChart').getContext('2d');
-            overallChart = new Chart(overallCtx, {
-                type: 'line',
-                data: getOverallChartData(),
-                options: {
-                    responsive: true,
-                    plugins: {
-                        legend: {
-                            display: false
-                        },
-                        tooltip: {
-                            mode: 'index',
-                            intersect: false
-                        }
-                    },
-                    scales: {
-                        y: {
-                            beginAtZero: true,
-                            grid: {
-                                color: 'rgba(0,0,0,0.1)'
-                            }
-                        },
-                        x: {
-                            grid: {
-                                display: false
-                            }
-                        }
-                    },
-                    interaction: {
-                        intersect: false,
-                        mode: 'nearest'
-                    }
-                }
-            });
-
-            // Performance Chart
-            const performanceCtx = document.getElementById('performanceChart').getContext('2d');
-            performanceChart = new Chart(performanceCtx, {
-                type: 'doughnut',
-                data: getPerformanceChartData(),
-                options: {
-                    responsive: true,
-                    plugins: {
-                        legend: {
-                            position: 'bottom'
-                        }
-                    },
-                    cutout: '60%'
-                }
-            });
-        }
-
-        function getOverallChartData() {
-            const hours = ['6AM', '7AM', '8AM', '9AM', '10AM', '11AM', '12PM', '1PM', '2PM', '3PM', '4PM', '5PM', '6PM', '7PM', '8PM', '9PM', '10PM'];
-            
-            // Calculate aggregated data
-            const projectionSums = new Array(hours.length).fill(0);
-            const attainmentSums = new Array(hours.length).fill(0);
-            const yesterdaySums = new Array(hours.length).fill(0);
-
-            Object.values(storeData).forEach(store => {
-                store.projection.forEach((val, i) => projectionSums[i] += val);
-                store.attainment.forEach((val, i) => attainmentSums[i] += val || 0);
-                store.yesterday.forEach((val, i) => yesterdaySums[i] += val);
-            });
-
-            return {
-                labels: hours,
-                datasets: [
-                    {
-                        label: 'Projection',
-                        data: projectionSums,
-                        borderColor: '#3498db',
-                        backgroundColor: 'rgba(52, 152, 219, 0.1)',
-                        borderWidth: 3,
-                        tension: 0.4,
-                        fill: true
-                    },
-                    {
-                        label: 'Attainment',
-                        data: attainmentSums,
-                        borderColor: '#27ae60',
-                        backgroundColor: 'rgba(39, 174, 96, 0.1)',
-                        borderWidth: 3,
-                        tension: 0.4,
-                        fill: true
-                    },
-                    {
-                        label: 'Yesterday',
-                        data: yesterdaySums,
-                        borderColor: '#e74c3c',
-                        backgroundColor: 'rgba(231, 76, 60, 0.1)',
-                        borderWidth: 2,
-                        tension: 0.4,
-                        borderDash: [5, 5],
-                        fill: true
-                    }
-                ]
-            };
-        }
-
-        function getPerformanceChartData() {
-            const stores = Object.keys(storeData);
-            const attainmentRates = stores.map(store => {
-                const projected = storeData[store].projection.slice(0, 5).reduce((a, b) => a + b, 0);
-                const attained = storeData[store].attainment.slice(0, 5).filter(v => v !== null).reduce((a, b) => a + b, 0);
-                return ((attained / projected) * 100).toFixed(1);
-            });
-
-            return {
-                labels: stores,
-                datasets: [{
-                    data: attainmentRates,
-                    backgroundColor: [
-                        '#3498db', '#27ae60', '#e74c3c', '#f39c12',
-                        '#9b59b6', '#1abc9c', '#d35400', '#34495e'
-                    ],
-                    borderWidth: 2,
-                    borderColor: 'white'
-                }]
-            };
-        }
-
-        // Populate stores table
-        function populateStoresTable() {
-            const tbody = document.getElementById('storesTableBody');
-            tbody.innerHTML = '';
-
-            Object.entries(storeData).forEach(([storeName, data]) => {
-                const hours = data.attainment.slice(0, 5);
-                const totalAttained = hours.filter(v => v !== null).reduce((a, b) => a + b, 0);
-                const totalProjected = data.projection.slice(0, 5).reduce((a, b) => a + b, 0);
-                const attainmentRate = ((totalAttained / totalProjected) * 100).toFixed(1);
-                
-                const row = document.createElement('tr');
-                row.innerHTML = `
-                    <td class="store-name">${storeName}</td>
-                    ${hours.map(hour => `
-                        <td>${hour !== null ? `<strong>${hour}</strong>` : '<span style="color: #95a5a6">-</span>'}</td>
-                    `).join('')}
-                    <td><strong>${totalAttained}</strong></td>
-                    <td>
-                        <div class="progress-cell">
-                            <div class="progress-bar">
-                                <div class="progress-fill ${getProgressClass(attainmentRate)}" 
-                                     style="width: ${Math.min(attainmentRate, 100)}%"></div>
-                            </div>
-                            <div style="margin-top: 5px; font-size: 12px; font-weight: 600; color: ${getProgressColor(attainmentRate)}">
-                                ${attainmentRate}%
-                            </div>
-                        </div>
-                    </td>
-                    <td>
-                        <span style="color: ${getTrendColor(attainmentRate)}; font-size: 18px;">
-                            ${getTrendIcon(attainmentRate)}
-                        </span>
-                    </td>
-                `;
-                tbody.appendChild(row);
-            });
-        }
-
-        function getProgressClass(rate) {
-            if (rate >= 90) return 'progress-high';
-            if (rate >= 70) return 'progress-medium';
-            return 'progress-low';
-        }
-
-        function getProgressColor(rate) {
-            if (rate >= 90) return '#27ae60';
-            if (rate >= 70) return '#f39c12';
-            return '#e74c3c';
-        }
-
-        function getTrendColor(rate) {
-            if (rate >= 90) return '#27ae60';
-            if (rate >= 70) return '#f39c12';
-            return '#e74c3c';
-        }
-
-        function getTrendIcon(rate) {
-            if (rate >= 90) return '📈';
-            if (rate >= 70) return '➡️';
-            return '📉';
-        }
-
-        // Utility functions
-        function updateLastUpdated() {
-            const now = new Date();
-            const timeString = now.toLocaleTimeString();
-            document.getElementById('lastUpdated').innerHTML = `<i class="fas fa-clock"></i> Last updated: ${timeString}`;
-        }
-
-        function refreshData() {
-            document.getElementById('loadingIndicator').style.display = 'flex';
-            document.getElementById('storesTable').style.display = 'none';
-            
-            // Simulate API call delay
+    function showNotification(message, type) {
+        const notification = document.createElement('div');
+        notification.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 15px 20px;
+            background: ${type === 'success' ? '#27ae60' : type === 'warning' ? '#f39c12' : '#e74c3c'};
+            color: white;
+            border-radius: 10px;
+            z-index: 1000;
+            font-weight: 600;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+            transform: translateX(400px);
+            transition: transform 0.3s ease;
+        `;
+        notification.innerHTML = `
+            <i class="fas fa-${type === 'success' ? 'check' : type === 'warning' ? 'exclamation-triangle' : 'exclamation'}-circle"></i>
+            ${message}
+        `;
+        
+        document.body.appendChild(notification);
+        
+        setTimeout(() => {
+            notification.style.transform = 'translateX(0)';
+        }, 100);
+        
+        setTimeout(() => {
+            notification.style.transform = 'translateX(400px)';
             setTimeout(() => {
-                // In real implementation, fetch from Google Sheets here
-                initializeDashboard();
-                
-                // Show success message
-                showNotification('Data refreshed successfully!', 'success');
-            }, 1500);
-        }
+                document.body.removeChild(notification);
+            }, 300);
+        }, 4000);
+    }
 
-        function showNotification(message, type) {
-            // Create notification element
-            const notification = document.createElement('div');
-            notification.style.cssText = `
-                position: fixed;
-                top: 20px;
-                right: 20px;
-                padding: 15px 20px;
-                background: ${type === 'success' ? '#27ae60' : '#e74c3c'};
-                color: white;
-                border-radius: 10px;
-                z-index: 1000;
-                font-weight: 600;
-                box-shadow: 0 5px 15px rgba(0,0,0,0.2);
-                transform: translateX(400px);
-                transition: transform 0.3s ease;
-            `;
-            notification.innerHTML = `
-                <i class="fas fa-${type === 'success' ? 'check' : 'exclamation'}-circle"></i>
-                ${message}
-            `;
-            
-            document.body.appendChild(notification);
-            
-            // Animate in
-            setTimeout(() => {
-                notification.style.transform = 'translateX(0)';
-            }, 100);
-            
-            // Remove after 3 seconds
-            setTimeout(() => {
-                notification.style.transform = 'translateX(400px)';
-                setTimeout(() => {
-                    document.body.removeChild(notification);
-                }, 300);
-            }, 3000);
-        }
+    // Your existing chart functions (keep these the same)
+    let overallChart, performanceChart;
 
-        // Initialize when page loads
-        document.addEventListener('DOMContentLoaded', function() {
-            // Simulate initial data loading
-            setTimeout(initializeDashboard, 2000);
+    function calculateKPIs() {
+        let totalProjected = 0;
+        let totalAttained = 0;
+        let totalYesterday = 0;
+
+        Object.values(storeData).forEach(store => {
+            const projected = store.projection.slice(0, 5).reduce((a, b) => a + b, 0);
+            const attained = store.attainment.slice(0, 5).filter(v => v !== null).reduce((a, b) => a + b, 0);
+            const yesterday = store.yesterday.slice(0, 5).reduce((a, b) => a + b, 0);
             
-            // Add event listeners
-            document.getElementById('datePicker').addEventListener('change', function() {
-                showNotification(`Viewing data for ${this.value}`, 'info');
-            });
-            
-            document.getElementById('storeFilter').addEventListener('change', function() {
-                if (this.value !== 'all') {
-                    showNotification(`Filtered view: ${this.value}`, 'info');
-                }
-            });
+            totalProjected += projected;
+            totalAttained += attained;
+            totalYesterday += yesterday;
         });
-    </script>
+
+        const attainmentRate = ((totalAttained / totalProjected) * 100).toFixed(1);
+        const vsProjection = ((totalAttained - totalProjected) / totalProjected * 100).toFixed(1);
+        const vsYesterday = ((totalAttained - totalYesterday) / totalYesterday * 100).toFixed(1);
+
+        document.getElementById('totalAttainment').textContent = totalAttained;
+        document.getElementById('attainmentRate').textContent = attainmentRate + '%';
+        document.getElementById('vsProjection').textContent = vsProjection + '%';
+        document.getElementById('vsYesterday').textContent = vsYesterday + '%';
+
+        document.getElementById('rateTrend').textContent = attainmentRate >= 100 ? '+0% vs Target' : '-' + (100 - attainmentRate) + '% vs Target';
+        document.getElementById('rateTrend').className = `kpi-trend ${attainmentRate >= 100 ? 'trend-positive' : 'trend-negative'}`;
+        
+        document.getElementById('projectionTrend').textContent = vsProjection >= 0 ? 'Above Target' : 'Below Target';
+        document.getElementById('projectionTrend').className = `kpi-trend ${vsProjection >= 0 ? 'trend-positive' : 'trend-negative'}`;
+        
+        document.getElementById('yesterdayTrend').textContent = (vsYesterday >= 0 ? '+' : '') + vsYesterday + '%';
+        document.getElementById('yesterdayTrend').className = `kpi-trend ${vsYesterday >= 0 ? 'trend-positive' : 'trend-negative'}`;
+    }
+
+    function initializeCharts() {
+        const overallCtx = document.getElementById('overallChart').getContext('2d');
+        overallChart = new Chart(overallCtx, {
+            type: 'line',
+            data: getOverallChartData(),
+            options: {
+                responsive: true,
+                plugins: { legend: { display: false } },
+                scales: {
+                    y: { beginAtZero: true, grid: { color: 'rgba(0,0,0,0.1)' } },
+                    x: { grid: { display: false } }
+                }
+            }
+        });
+
+        const performanceCtx = document.getElementById('performanceChart').getContext('2d');
+        performanceChart = new Chart(performanceCtx, {
+            type: 'doughnut',
+            data: getPerformanceChartData(),
+            options: {
+                responsive: true,
+                plugins: { legend: { position: 'bottom' } },
+                cutout: '60%'
+            }
+        });
+    }
+
+    function getOverallChartData() {
+        const hours = ['6AM', '7AM', '8AM', '9AM', '10AM', '11AM', '12PM', '1PM', '2PM', '3PM', '4PM', '5PM', '6PM', '7PM', '8PM', '9PM', '10PM'];
+        
+        const projectionSums = new Array(hours.length).fill(0);
+        const attainmentSums = new Array(hours.length).fill(0);
+        const yesterdaySums = new Array(hours.length).fill(0);
+
+        Object.values(storeData).forEach(store => {
+            store.projection.forEach((val, i) => projectionSums[i] += val);
+            store.attainment.forEach((val, i) => attainmentSums[i] += val || 0);
+            store.yesterday.forEach((val, i) => yesterdaySums[i] += val);
+        });
+
+        return {
+            labels: hours,
+            datasets: [
+                {
+                    label: 'Projection',
+                    data: projectionSums,
+                    borderColor: '#3498db',
+                    backgroundColor: 'rgba(52, 152, 219, 0.1)',
+                    borderWidth: 3,
+                    tension: 0.4,
+                    fill: true
+                },
+                {
+                    label: 'Attainment',
+                    data: attainmentSums,
+                    borderColor: '#27ae60',
+                    backgroundColor: 'rgba(39, 174, 96, 0.1)',
+                    borderWidth: 3,
+                    tension: 0.4,
+                    fill: true
+                },
+                {
+                    label: 'Yesterday',
+                    data: yesterdaySums,
+                    borderColor: '#e74c3c',
+                    backgroundColor: 'rgba(231, 76, 60, 0.1)',
+                    borderWidth: 2,
+                    tension: 0.4,
+                    borderDash: [5, 5],
+                    fill: true
+                }
+            ]
+        };
+    }
+
+    function getPerformanceChartData() {
+        const stores = Object.keys(storeData);
+        const attainmentRates = stores.map(store => {
+            const projected = storeData[store].projection.slice(0, 5).reduce((a, b) => a + b, 0);
+            const attained = storeData[store].attainment.slice(0, 5).filter(v => v !== null).reduce((a, b) => a + b, 0);
+            return ((attained / projected) * 100).toFixed(1);
+        });
+
+        return {
+            labels: stores,
+            datasets: [{
+                data: attainmentRates,
+                backgroundColor: ['#3498db', '#27ae60', '#e74c3c', '#f39c12', '#9b59b6', '#1abc9c', '#d35400', '#34495e'],
+                borderWidth: 2,
+                borderColor: 'white'
+            }]
+        };
+    }
+
+    function populateStoresTable() {
+        const tbody = document.getElementById('storesTableBody');
+        tbody.innerHTML = '';
+
+        Object.entries(storeData).forEach(([storeName, data]) => {
+            const hours = data.attainment.slice(0, 5);
+            const totalAttained = hours.filter(v => v !== null).reduce((a, b) => a + b, 0);
+            const totalProjected = data.projection.slice(0, 5).reduce((a, b) => a + b, 0);
+            const attainmentRate = ((totalAttained / totalProjected) * 100).toFixed(1);
+            
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td class="store-name">${storeName}</td>
+                ${hours.map(hour => `
+                    <td>${hour !== null ? `<strong>${hour}</strong>` : '<span style="color: #95a5a6">-</span>'}</td>
+                `).join('')}
+                <td><strong>${totalAttained}</strong></td>
+                <td>
+                    <div class="progress-cell">
+                        <div class="progress-bar">
+                            <div class="progress-fill ${getProgressClass(attainmentRate)}" 
+                                 style="width: ${Math.min(attainmentRate, 100)}%"></div>
+                        </div>
+                        <div style="margin-top: 5px; font-size: 12px; font-weight: 600; color: ${getProgressColor(attainmentRate)}">
+                            ${attainmentRate}%
+                        </div>
+                    </div>
+                </td>
+                <td>
+                    <span style="color: ${getTrendColor(attainmentRate)}; font-size: 18px;">
+                        ${getTrendIcon(attainmentRate)}
+                    </span>
+                </td>
+            `;
+            tbody.appendChild(row);
+        });
+    }
+
+    function getProgressClass(rate) {
+        if (rate >= 90) return 'progress-high';
+        if (rate >= 70) return 'progress-medium';
+        return 'progress-low';
+    }
+
+    function getProgressColor(rate) {
+        if (rate >= 90) return '#27ae60';
+        if (rate >= 70) return '#f39c12';
+        return '#e74c3c';
+    }
+
+    function getTrendColor(rate) {
+        if (rate >= 90) return '#27ae60';
+        if (rate >= 70) return '#f39c12';
+        return '#e74c3c';
+    }
+
+    function getTrendIcon(rate) {
+        if (rate >= 90) return '📈';
+        if (rate >= 70) return '➡️';
+        return '📉';
+    }
+
+    // Initialize when page loads
+    document.addEventListener('DOMContentLoaded', function() {
+        initializeDashboard();
+        
+        document.getElementById('datePicker').addEventListener('change', function() {
+            showNotification(`Viewing data for ${this.value}`, 'info');
+        });
+        
+        document.getElementById('storeFilter').addEventListener('change', function() {
+            if (this.value !== 'all') {
+                showNotification(`Filtered view: ${this.value}`, 'info');
+            }
+        });
+    });
+</script>
 </body>
 </html>
