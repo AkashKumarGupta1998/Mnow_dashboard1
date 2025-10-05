@@ -1,0 +1,25 @@
+{
+  "lastUpdated": "2025-10-05T14:30:00Z",
+  "stores": {
+    "Janakpuri Mnow SF": {
+      "projection": [4, 12, 20, 29, 33, 35, 42, 44, 41, 41, 41, 38, 44, 41, 36, 32, 28],
+      "attainment": [5, 15, 22, 43, 37, null, null, null, null, null, null, null, null, null, null, null, null],
+      "yesterday": [7, 14, 16, 45, 34, 34, 39, 54, 49, 48, 45, 59, 56, 51, 44, 37, 37]
+    },
+    "UttamNagar Mnow SF": {
+      "projection": [6, 19, 32, 46, 52, 55, 67, 69, 65, 66, 65, 60, 70, 65, 57, 51, 44],
+      "attainment": [6, 17, 28, 46, 52, null, null, null, null, null, null, null, null, null, null, null, null],
+      "yesterday": [2, 27, 28, 36, 56, 60, 49, 48, 51, 55, 54, 46, 57, 48, 53, 68, 43]
+    },
+    "Dwarka Mnow SF": {
+      "projection": [3, 9, 16, 23, 26, 27, 34, 35, 33, 33, 32, 30, 35, 33, 29, 26, 22],
+      "attainment": [2, 9, 22, 29, 26, null, null, null, null, null, null, null, null, null, null, null, null],
+      "yesterday": [2, 5, 16, 33, 29, 34, 41, 34, 45, 39, 45, 42, 36, 33, 36, 39, 29]
+    },
+    "Mandawali Mnow SF": {
+      "projection": [4, 11, 20, 28, 32, 33, 41, 42, 40, 40, 39, 37, 43, 40, 35, 31, 27],
+      "attainment": [1, 4, 20, 33, 32, null, null, null, null, null, null, null, null, null, null, null, null],
+      "yesterday": [2, 13, 20, 26, 39, 41, 51, 50, 47, 46, 55, 45, 51, 45, 34, 40, 39]
+    }
+  }
+}
